@@ -7,52 +7,9 @@
   <link rel="icon" href="/favicon.ico" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
-  <!-- =========================
-       CONFIG FILES (NO KEYS IN HTML MODULE)
-       ========================= -->
+  <!-- Config files (NO keys in HTML) -->
   <script src="config/maps-config.js"></script>
   <script src="config/firebase-config.js"></script>
-
-  <!-- =========================
-       Google Maps loader (CALLBACK-BASED)
-       IMPORTANT: This must be in <head> so Maps loads before user scrolls.
-       ========================= -->
-  <script>
-    (function loadGoogleMaps() {
-      if (!window.__GOOGLE_MAPS_KEY__) {
-        console.error("Google Maps key missing (window.__GOOGLE_MAPS_KEY__)");
-        return;
-      }
-
-      // Google Maps will call this global callback when it is fully ready.
-      window.__onGoogleMapsReady = function () {
-        // Our Firebase module will set window.__initMapInternal when it's loaded.
-        if (typeof window.__initMapInternal === "function") {
-          window.__initMapInternal();
-        } else {
-          console.warn("Maps loaded, but initMapInternal not ready yet. Retrying...");
-          let tries = 0;
-          const t = setInterval(() => {
-            tries++;
-            if (typeof window.__initMapInternal === "function") {
-              clearInterval(t);
-              window.__initMapInternal();
-            }
-            if (tries > 25) clearInterval(t);
-          }, 200);
-        }
-      };
-
-      const script = document.createElement("script");
-      script.src =
-        "https://maps.googleapis.com/maps/api/js?key=" +
-        encodeURIComponent(window.__GOOGLE_MAPS_KEY__) +
-        "&callback=__onGoogleMapsReady";
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    })();
-  </script>
 
   <style>
     /* Mobile ergonomics */
@@ -373,6 +330,20 @@
 
   <!-- Firebase + App Logic -->
   <script type="module">
+    // =========================
+    // 0) Config guards
+    // =========================
+    if (!window.__FIREBASE_CONFIG__) {
+      alert("Missing Firebase config.");
+      throw new Error("Missing Firebase config (window.__FIREBASE_CONFIG__)");
+    }
+    if (!window.__GOOGLE_MAPS_KEY__) {
+      console.warn("Missing Google Maps key (window.__GOOGLE_MAPS_KEY__). Map will not load.");
+    }
+
+    // =========================
+    // 1) Firebase imports (v9)
+    // =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
       getAuth,
@@ -391,18 +362,13 @@
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
     // =========================
-    // CONFIG comes from config/firebase-config.js
+    // 2) CONFIG: loaded from config/firebase-config.js
     // =========================
     const firebaseConfig = window.__FIREBASE_CONFIG__;
-    if (!firebaseConfig) {
-      console.error("Missing Firebase config. Make sure config/firebase-config.js loads.");
-      alert("Missing Firebase config.");
-    }
-
     const GOD_MODE_EMAIL = "dealbankers@gmail.com";
 
     // =========================
-    // Init
+    // 3) Init Firebase
     // =========================
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -410,28 +376,26 @@
     const provider = new GoogleAuthProvider();
 
     // =========================
-    // UI helpers
+    // 4) UI helpers
     // =========================
     const $ = (id) => document.getElementById(id);
     $("year").textContent = new Date().getFullYear();
 
-    const scrollToHelp = () => document.querySelector("#help").scrollIntoView({ behavior: "smooth", block: "start" });
+    const scrollToHelp = () =>
+      document.querySelector("#help").scrollIntoView({ behavior: "smooth", block: "start" });
+
     $("btnGetHelpNow").onclick = scrollToHelp;
     $("btnScrollHelp").onclick = scrollToHelp;
     $("mHelp").onclick = scrollToHelp;
 
     // =========================
-    // Google Map setup
+    // 5) Google Map setup (LOAD MAPS AFTER initMap exists)
     // =========================
     let map, customerMarker, selectedReqMarker;
     let lastLatLng = null;
 
     function initMap() {
-      if (!window.google || !google.maps) {
-        console.error("Google Maps not available yet.");
-        return;
-      }
-      const center = { lat: 29.4241, lng: -98.4936 }; // San Antonio
+      const center = { lat: 29.4241, lng: -98.4936 }; // default: San Antonio
       map = new google.maps.Map($("map"), {
         center,
         zoom: 12,
@@ -440,14 +404,52 @@
       });
     }
 
-    // Expose to the loader callback in <head>
-    window.__initMapInternal = initMap;
+    // Make it accessible to the Google Maps callback (even though we load dynamically)
+    window.initMap = initMap;
+
+    function loadGoogleMaps() {
+      if (!window.__GOOGLE_MAPS_KEY__) return;
+
+      // Prevent double-load
+      if (window.google && window.google.maps) {
+        initMap();
+        return;
+      }
+      if (document.getElementById("gmapsScript")) return;
+
+      const s = document.createElement("script");
+      s.id = "gmapsScript";
+      s.async = true;
+      s.defer = true;
+
+      // Places library is useful later (autocomplete, place details, etc.)
+      // callback=initMap ensures initMap runs only AFTER Maps is ready.
+      const key = encodeURIComponent(window.__GOOGLE_MAPS_KEY__);
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly&callback=initMap`;
+
+      s.onerror = () => {
+        console.error("Google Maps failed to load. Check API restrictions/billing/referrer rules.");
+        $("map").innerHTML = `
+          <div class="h-full w-full flex items-center justify-center text-sm text-gray-600">
+            Map failed to load. Check console for details.
+          </div>
+        `;
+      };
+
+      document.head.appendChild(s);
+    }
+
+    loadGoogleMaps();
 
     function setCustomerMarker(lat, lng) {
+      if (!map) return;
       lastLatLng = { lat, lng };
-      if (!map) return; // if map isn't ready yet, just store coords
       if (!customerMarker) {
-        customerMarker = new google.maps.Marker({ position: lastLatLng, map, title: "Your Location" });
+        customerMarker = new google.maps.Marker({
+          position: lastLatLng,
+          map,
+          title: "Your Location"
+        });
       } else {
         customerMarker.setPosition(lastLatLng);
       }
@@ -456,10 +458,14 @@
     }
 
     function setSelectedRequestMarker(lat, lng) {
-      const pos = { lat, lng };
       if (!map) return;
+      const pos = { lat, lng };
       if (!selectedReqMarker) {
-        selectedReqMarker = new google.maps.Marker({ position: pos, map, title: "Selected Request (Admin)" });
+        selectedReqMarker = new google.maps.Marker({
+          position: pos,
+          map,
+          title: "Selected Request (Admin)"
+        });
       } else {
         selectedReqMarker.setPosition(pos);
       }
@@ -467,9 +473,10 @@
       map.setZoom(15);
     }
 
+    // Reverse geocode (nice UX)
     async function reverseGeocode(lat, lng) {
       try {
-        if (!google?.maps?.Geocoder) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        if (!window.google?.maps?.Geocoder) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         const geocoder = new google.maps.Geocoder();
         const res = await geocoder.geocode({ location: { lat, lng } });
         const addr = res?.results?.[0]?.formatted_address;
@@ -480,7 +487,7 @@
     }
 
     // =========================
-    // Live Location sharing
+    // 6) Live Location sharing
     // =========================
     let watchId = null;
     let currentAddress = null;
@@ -497,51 +504,70 @@
         watchId = null;
       }
 
-      watchId = navigator.geolocation.watchPosition(async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
+      watchId = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
 
-        setCustomerMarker(lat, lng);
+          setCustomerMarker(lat, lng);
 
-        currentAddress = await reverseGeocode(lat, lng);
-        $("locText").textContent = currentAddress;
+          currentAddress = await reverseGeocode(lat, lng);
+          $("locText").textContent = currentAddress;
 
-        $("reqStatus").textContent = "Live location active ✅";
-      }, () => {
-        $("reqStatus").textContent = "Location permission blocked. Please enable GPS.";
-      }, {
-        enableHighAccuracy: true,
-        maximumAge: 5000,
-        timeout: 15000
-      });
+          $("reqStatus").textContent = "Live location active ✅";
+        },
+        () => {
+          $("reqStatus").textContent = "Location permission blocked. Please enable GPS.";
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 5000,
+          timeout: 15000
+        }
+      );
     };
 
     // =========================
-    // Create a Help Request
+    // 7) Create a Help Request
     // =========================
     let activeRequestId = null;
-    function val(id) { return ($(id).value || "").trim(); }
+
+    function val(id) {
+      return ($(`${id}`).value || "").trim();
+    }
 
     function requireBasics() {
-      if (!val("custName") || !val("custPhone") || !val("serviceType")) return false;
+      const name = val("custName");
+      const phone = val("custPhone");
+      const service = val("serviceType");
+      if (!name || !phone || !service) return false;
       if (!lastLatLng) return false;
       return true;
     }
 
     $("btnSubmitRequest").onclick = async () => {
       $("reqStatus").textContent = "";
+
       if (!requireBasics()) {
-        $("reqStatus").textContent = "Fill name + phone + choose service AND share location first.";
+        $("reqStatus").textContent =
+          "Fill name + phone + choose service AND share location first.";
         return;
       }
 
       const payload = {
         createdAt: Date.now(),
         status: "NEW",
-        customer: { name: val("custName"), phone: val("custPhone") },
+        customer: {
+          name: val("custName"),
+          phone: val("custPhone")
+        },
         service: val("serviceType"),
         details: val("details"),
-        location: { lat: lastLatLng.lat, lng: lastLatLng.lng, address: currentAddress || null }
+        location: {
+          lat: lastLatLng.lat,
+          lng: lastLatLng.lng,
+          address: currentAddress || null
+        }
       };
 
       try {
@@ -549,6 +575,7 @@
         await set(reqRef, payload);
         activeRequestId = reqRef.key;
 
+        // Create chat root
         await set(ref(db, `chats/${activeRequestId}/meta`), {
           createdAt: Date.now(),
           requestId: activeRequestId
@@ -558,7 +585,10 @@
         $("customerChatWrap").classList.remove("hidden");
         $("chatMeta").textContent = `Request: ${activeRequestId}`;
 
+        // Start pushing live GPS updates into /requests/{id}/liveLocation if watch is running
         startLiveLocationSync(activeRequestId);
+
+        // Start listening to chat
         listenChat(activeRequestId, $("chatBox"));
       } catch (e) {
         console.error(e);
@@ -567,8 +597,10 @@
     };
 
     async function startLiveLocationSync(requestId) {
-      if (!watchId) return;
+      if (!watchId) return; // only if user tapped Share Location
+
       const liveRef = ref(db, `requests/${requestId}/liveLocation`);
+
       const tick = async () => {
         if (!activeRequestId || activeRequestId !== requestId) return;
         if (!lastLatLng) return;
@@ -581,33 +613,44 @@
           });
         } catch {}
       };
+
       await tick();
+
       const intervalId = setInterval(async () => {
-        if (!activeRequestId || activeRequestId !== requestId) { clearInterval(intervalId); return; }
+        if (!activeRequestId || activeRequestId !== requestId) {
+          clearInterval(intervalId);
+          return;
+        }
         await tick();
       }, 6000);
     }
 
     // =========================
-    // Chat
+    // 8) Chat (customer + admin)
     // =========================
     function renderChat(container, msgsObj) {
       container.innerHTML = "";
       if (!msgsObj) return;
+
       const msgs = Object.entries(msgsObj)
         .filter(([k]) => k !== "meta")
         .map(([id, m]) => ({ id, ...m }))
-        .sort((a,b) => (a.ts||0) - (b.ts||0));
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0));
 
       for (const m of msgs) {
         const wrap = document.createElement("div");
         wrap.className = "mb-2";
+
         const who = document.createElement("div");
         who.className = "text-xs text-gray-500";
-        who.textContent = `${m.from || "unknown"} • ${new Date(m.ts || Date.now()).toLocaleTimeString()}`;
+        who.textContent = `${m.from || "unknown"} • ${new Date(
+          m.ts || Date.now()
+        ).toLocaleTimeString()}`;
+
         const body = document.createElement("div");
         body.className = "bg-white border border-gray-200 rounded-xl p-2";
         body.textContent = m.text || "";
+
         wrap.appendChild(who);
         wrap.appendChild(body);
         container.appendChild(wrap);
@@ -617,7 +660,9 @@
 
     function listenChat(requestId, container) {
       const chatRef = ref(db, `chats/${requestId}`);
-      onValue(chatRef, (snap) => renderChat(container, snap.val()));
+      onValue(chatRef, (snap) => {
+        renderChat(container, snap.val());
+      });
     }
 
     async function sendChatMessage(requestId, from, text) {
@@ -634,13 +679,13 @@
     };
 
     // =========================
-    // Fleet + Franchise forms
+    // 9) Fleet + Franchise forms (stored in Firebase)
     // =========================
     $("btnFleetStart").onclick = async () => {
       $("fleetStatus").textContent = "";
-      const company = ( $("fleetCompany").value || "" ).trim();
-      const contact = ( $("fleetContact").value || "" ).trim();
-      const phone = ( $("fleetPhone").value || "" ).trim();
+      const company = ($("fleetCompany").value || "").trim();
+      const contact = ($("fleetContact").value || "").trim();
+      const phone = ($("fleetPhone").value || "").trim();
       if (!company || !contact || !phone) {
         $("fleetStatus").textContent = "Company + contact + phone required.";
         return;
@@ -652,11 +697,15 @@
           company,
           contact,
           phone,
-          email: ( $("fleetEmail").value || "" ).trim() || null,
+          email: ($("fleetEmail").value || "").trim() || null,
           fleetSize: $("fleetSize").value || null
         });
         $("fleetStatus").textContent = "Submitted ✅ We’ll contact you fast.";
-        $("fleetCompany").value = $("fleetContact").value = $("fleetPhone").value = $("fleetEmail").value = "";
+        $("fleetCompany").value =
+          $("fleetContact").value =
+          $("fleetPhone").value =
+          $("fleetEmail").value =
+            "";
       } catch {
         $("fleetStatus").textContent = "Error. Try again.";
       }
@@ -664,9 +713,9 @@
 
     $("btnFranchiseApply").onclick = async () => {
       $("franStatus").textContent = "";
-      const name = ( $("franName").value || "" ).trim();
-      const phone = ( $("franPhone").value || "" ).trim();
-      const city = ( $("franCity").value || "" ).trim();
+      const name = ($("franName").value || "").trim();
+      const phone = ($("franPhone").value || "").trim();
+      const city = ($("franCity").value || "").trim();
       if (!name || !phone || !city) {
         $("franStatus").textContent = "Name + phone + territory required.";
         return;
@@ -678,7 +727,7 @@
           name,
           phone,
           territory: city,
-          note: ( $("franNote").value || "" ).trim() || null
+          note: ($("franNote").value || "").trim() || null
         });
         $("franStatus").textContent = "Submitted ✅ We’ll reach out.";
         $("franName").value = $("franPhone").value = $("franCity").value = $("franNote").value = "";
@@ -688,7 +737,7 @@
     };
 
     // =========================
-    // Auth (Admin)
+    // 10) Auth (Admin)
     // =========================
     $("btnAuth").onclick = async () => {
       try {
@@ -699,13 +748,16 @@
       }
     };
 
-    $("btnSignOut").onclick = async () => { await signOut(auth); };
+    $("btnSignOut").onclick = async () => {
+      await signOut(auth);
+    };
 
     let adminSelectedId = null;
 
     function renderRequestsList(listObj) {
       const wrap = $("adminRequests");
       wrap.innerHTML = "";
+
       if (!listObj) {
         wrap.innerHTML = `<div class="text-gray-600">No requests yet.</div>`;
         return;
@@ -713,16 +765,19 @@
 
       const items = Object.entries(listObj)
         .map(([id, r]) => ({ id, ...r }))
-        .sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
         .slice(0, 30);
 
       for (const r of items) {
         const btn = document.createElement("button");
-        btn.className = "w-full text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-3";
+        btn.className =
+          "w-full text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-3";
         btn.innerHTML = `
           <div class="flex items-center justify-between">
             <div class="font-bold">${r.service || "Request"}</div>
-            <div class="text-xs px-2 py-1 rounded-lg ${r.status==="NEW" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}">${r.status || "—"}</div>
+            <div class="text-xs px-2 py-1 rounded-lg ${
+              r.status === "NEW" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"
+            }">${r.status || "—"}</div>
           </div>
           <div class="text-xs text-gray-600 mt-1">${r.customer?.name || ""} • ${r.customer?.phone || ""}</div>
           <div class="text-xs text-gray-500 mt-1">${r.location?.address || ""}</div>
@@ -735,14 +790,18 @@
 
     function listenRequestsForAdmin() {
       const reqsRef = ref(db, "requests");
-      onValue(reqsRef, (snap) => renderRequestsList(snap.val()));
+      onValue(reqsRef, (snap) => {
+        renderRequestsList(snap.val());
+      });
     }
 
     function listenLiveLocationForSelected(requestId) {
       const liveRef = ref(db, `requests/${requestId}/liveLocation`);
       onValue(liveRef, (snap) => {
         const live = snap.val();
-        if (live?.lat && live?.lng) setSelectedRequestMarker(live.lat, live.lng);
+        if (live?.lat && live?.lng) {
+          setSelectedRequestMarker(live.lat, live.lng);
+        }
       });
     }
 
@@ -750,6 +809,7 @@
       adminSelectedId = requestId;
       $("adminSelected").innerHTML = `<div class="font-bold">Request ID:</div><div class="text-xs text-gray-600">${requestId}</div>`;
       $("adminChatWrap").classList.remove("hidden");
+
       listenChat(requestId, $("adminChatBox"));
       listenLiveLocationForSelected(requestId);
     }
@@ -768,6 +828,8 @@
       }
 
       $("authStatus").textContent = `Signed in: ${user.email || "unknown"}`;
+
+      // GOD MODE gate
       if ((user.email || "").toLowerCase() === GOD_MODE_EMAIL.toLowerCase()) {
         $("adminPanel").classList.remove("hidden");
         listenRequestsForAdmin();

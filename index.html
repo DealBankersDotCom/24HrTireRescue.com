@@ -7,28 +7,52 @@
   <link rel="icon" href="/favicon.ico" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
-<!-- Config -->
-<script src="config/maps-config.js"></script>
+  <!-- =========================
+       CONFIG FILES (NO KEYS IN HTML MODULE)
+       ========================= -->
+  <script src="config/maps-config.js"></script>
+  <script src="config/firebase-config.js"></script>
 
-<!-- Google Maps loader -->
-<script>
-  (function loadGoogleMaps() {
-    if (!window.__GOOGLE_MAPS_KEY__) {
-      console.error("Google Maps key missing");
-      return;
-    }
+  <!-- =========================
+       Google Maps loader (CALLBACK-BASED)
+       IMPORTANT: This must be in <head> so Maps loads before user scrolls.
+       ========================= -->
+  <script>
+    (function loadGoogleMaps() {
+      if (!window.__GOOGLE_MAPS_KEY__) {
+        console.error("Google Maps key missing (window.__GOOGLE_MAPS_KEY__)");
+        return;
+      }
 
-    const script = document.createElement("script");
-    script.src =
-      "https://maps.googleapis.com/maps/api/js?key=" +
-      encodeURIComponent(window.__GOOGLE_MAPS_KEY__);
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  })();
-</script>
+      // Google Maps will call this global callback when it is fully ready.
+      window.__onGoogleMapsReady = function () {
+        // Our Firebase module will set window.__initMapInternal when it's loaded.
+        if (typeof window.__initMapInternal === "function") {
+          window.__initMapInternal();
+        } else {
+          console.warn("Maps loaded, but initMapInternal not ready yet. Retrying...");
+          let tries = 0;
+          const t = setInterval(() => {
+            tries++;
+            if (typeof window.__initMapInternal === "function") {
+              clearInterval(t);
+              window.__initMapInternal();
+            }
+            if (tries > 25) clearInterval(t);
+          }, 200);
+        }
+      };
 
-
+      const script = document.createElement("script");
+      script.src =
+        "https://maps.googleapis.com/maps/api/js?key=" +
+        encodeURIComponent(window.__GOOGLE_MAPS_KEY__) +
+        "&callback=__onGoogleMapsReady";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  </script>
 
   <style>
     /* Mobile ergonomics */
@@ -349,9 +373,6 @@
 
   <!-- Firebase + App Logic -->
   <script type="module">
-    // =========================
-    // 1) Firebase imports (v9)
-    // =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import {
       getAuth,
@@ -366,27 +387,22 @@
       push,
       set,
       update,
-      onValue,
-      serverTimestamp
+      onValue
     } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 
     // =========================
-    // 2) CONFIG: paste yours
+    // CONFIG comes from config/firebase-config.js
     // =========================
-    const firebaseConfig = {
-      apiKey: "YOUR_FIREBASE_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+    const firebaseConfig = window.__FIREBASE_CONFIG__;
+    if (!firebaseConfig) {
+      console.error("Missing Firebase config. Make sure config/firebase-config.js loads.");
+      alert("Missing Firebase config.");
+    }
 
     const GOD_MODE_EMAIL = "dealbankers@gmail.com";
 
     // =========================
-    // 3) Init
+    // Init
     // =========================
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
@@ -394,26 +410,28 @@
     const provider = new GoogleAuthProvider();
 
     // =========================
-    // 4) UI helpers
+    // UI helpers
     // =========================
     const $ = (id) => document.getElementById(id);
-
     $("year").textContent = new Date().getFullYear();
 
     const scrollToHelp = () => document.querySelector("#help").scrollIntoView({ behavior: "smooth", block: "start" });
-
     $("btnGetHelpNow").onclick = scrollToHelp;
     $("btnScrollHelp").onclick = scrollToHelp;
     $("mHelp").onclick = scrollToHelp;
 
     // =========================
-    // 5) Google Map setup
+    // Google Map setup
     // =========================
     let map, customerMarker, selectedReqMarker;
     let lastLatLng = null;
 
     function initMap() {
-      const center = { lat: 29.4241, lng: -98.4936 }; // default: San Antonio
+      if (!window.google || !google.maps) {
+        console.error("Google Maps not available yet.");
+        return;
+      }
+      const center = { lat: 29.4241, lng: -98.4936 }; // San Antonio
       map = new google.maps.Map($("map"), {
         center,
         zoom: 12,
@@ -421,16 +439,15 @@
         zoomControl: true
       });
     }
-    initMap();
+
+    // Expose to the loader callback in <head>
+    window.__initMapInternal = initMap;
 
     function setCustomerMarker(lat, lng) {
       lastLatLng = { lat, lng };
+      if (!map) return; // if map isn't ready yet, just store coords
       if (!customerMarker) {
-        customerMarker = new google.maps.Marker({
-          position: lastLatLng,
-          map,
-          title: "Your Location"
-        });
+        customerMarker = new google.maps.Marker({ position: lastLatLng, map, title: "Your Location" });
       } else {
         customerMarker.setPosition(lastLatLng);
       }
@@ -440,12 +457,9 @@
 
     function setSelectedRequestMarker(lat, lng) {
       const pos = { lat, lng };
+      if (!map) return;
       if (!selectedReqMarker) {
-        selectedReqMarker = new google.maps.Marker({
-          position: pos,
-          map,
-          title: "Selected Request (Admin)"
-        });
+        selectedReqMarker = new google.maps.Marker({ position: pos, map, title: "Selected Request (Admin)" });
       } else {
         selectedReqMarker.setPosition(pos);
       }
@@ -453,20 +467,20 @@
       map.setZoom(15);
     }
 
-    // Reverse geocode (nice UX)
     async function reverseGeocode(lat, lng) {
       try {
+        if (!google?.maps?.Geocoder) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         const geocoder = new google.maps.Geocoder();
-        const res = await geocoder.geocode({ location: { lat, lng }});
+        const res = await geocoder.geocode({ location: { lat, lng } });
         const addr = res?.results?.[0]?.formatted_address;
         return addr || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      } catch (e) {
+      } catch {
         return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
       }
     }
 
     // =========================
-    // 6) Live Location sharing
+    // Live Location sharing
     // =========================
     let watchId = null;
     let currentAddress = null;
@@ -486,13 +500,14 @@
       watchId = navigator.geolocation.watchPosition(async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+
         setCustomerMarker(lat, lng);
 
         currentAddress = await reverseGeocode(lat, lng);
         $("locText").textContent = currentAddress;
 
         $("reqStatus").textContent = "Live location active ✅";
-      }, (err) => {
+      }, () => {
         $("reqStatus").textContent = "Location permission blocked. Please enable GPS.";
       }, {
         enableHighAccuracy: true,
@@ -502,24 +517,19 @@
     };
 
     // =========================
-    // 7) Create a Help Request
+    // Create a Help Request
     // =========================
     let activeRequestId = null;
-
     function val(id) { return ($(id).value || "").trim(); }
 
     function requireBasics() {
-      const name = val("custName");
-      const phone = val("custPhone");
-      const service = val("serviceType");
-      if (!name || !phone || !service) return false;
+      if (!val("custName") || !val("custPhone") || !val("serviceType")) return false;
       if (!lastLatLng) return false;
       return true;
     }
 
     $("btnSubmitRequest").onclick = async () => {
       $("reqStatus").textContent = "";
-
       if (!requireBasics()) {
         $("reqStatus").textContent = "Fill name + phone + choose service AND share location first.";
         return;
@@ -528,17 +538,10 @@
       const payload = {
         createdAt: Date.now(),
         status: "NEW",
-        customer: {
-          name: val("custName"),
-          phone: val("custPhone")
-        },
+        customer: { name: val("custName"), phone: val("custPhone") },
         service: val("serviceType"),
         details: val("details"),
-        location: {
-          lat: lastLatLng.lat,
-          lng: lastLatLng.lng,
-          address: currentAddress || null
-        }
+        location: { lat: lastLatLng.lat, lng: lastLatLng.lng, address: currentAddress || null }
       };
 
       try {
@@ -546,7 +549,6 @@
         await set(reqRef, payload);
         activeRequestId = reqRef.key;
 
-        // Create chat root
         await set(ref(db, `chats/${activeRequestId}/meta`), {
           createdAt: Date.now(),
           requestId: activeRequestId
@@ -556,12 +558,8 @@
         $("customerChatWrap").classList.remove("hidden");
         $("chatMeta").textContent = `Request: ${activeRequestId}`;
 
-        // Start pushing live GPS updates into /requests/{id}/liveLocation if watch is running
         startLiveLocationSync(activeRequestId);
-
-        // Start listening to chat
         listenChat(activeRequestId, $("chatBox"));
-
       } catch (e) {
         console.error(e);
         $("reqStatus").textContent = "Error submitting request. Try again.";
@@ -569,9 +567,7 @@
     };
 
     async function startLiveLocationSync(requestId) {
-      if (!watchId) return; // only if user tapped Share Location
-      // Every time marker updates (watchPosition), we also update liveLocation
-      // We'll do a lightweight interval that writes the latest lat/lng if available.
+      if (!watchId) return;
       const liveRef = ref(db, `requests/${requestId}/liveLocation`);
       const tick = async () => {
         if (!activeRequestId || activeRequestId !== requestId) return;
@@ -585,7 +581,6 @@
           });
         } catch {}
       };
-      // do it immediately + every 6s
       await tick();
       const intervalId = setInterval(async () => {
         if (!activeRequestId || activeRequestId !== requestId) { clearInterval(intervalId); return; }
@@ -594,7 +589,7 @@
     }
 
     // =========================
-    // 8) Chat (customer + admin)
+    // Chat
     // =========================
     function renderChat(container, msgsObj) {
       container.innerHTML = "";
@@ -622,9 +617,7 @@
 
     function listenChat(requestId, container) {
       const chatRef = ref(db, `chats/${requestId}`);
-      onValue(chatRef, (snap) => {
-        renderChat(container, snap.val());
-      });
+      onValue(chatRef, (snap) => renderChat(container, snap.val()));
     }
 
     async function sendChatMessage(requestId, from, text) {
@@ -641,13 +634,13 @@
     };
 
     // =========================
-    // 9) Fleet + Franchise forms (stored in Firebase)
+    // Fleet + Franchise forms
     // =========================
     $("btnFleetStart").onclick = async () => {
       $("fleetStatus").textContent = "";
-      const company = ($("fleetCompany").value || "").trim();
-      const contact = ($("fleetContact").value || "").trim();
-      const phone = ($("fleetPhone").value || "").trim();
+      const company = ( $("fleetCompany").value || "" ).trim();
+      const contact = ( $("fleetContact").value || "" ).trim();
+      const phone = ( $("fleetPhone").value || "" ).trim();
       if (!company || !contact || !phone) {
         $("fleetStatus").textContent = "Company + contact + phone required.";
         return;
@@ -659,7 +652,7 @@
           company,
           contact,
           phone,
-          email: ($("fleetEmail").value || "").trim() || null,
+          email: ( $("fleetEmail").value || "" ).trim() || null,
           fleetSize: $("fleetSize").value || null
         });
         $("fleetStatus").textContent = "Submitted ✅ We’ll contact you fast.";
@@ -671,9 +664,9 @@
 
     $("btnFranchiseApply").onclick = async () => {
       $("franStatus").textContent = "";
-      const name = ($("franName").value || "").trim();
-      const phone = ($("franPhone").value || "").trim();
-      const city = ($("franCity").value || "").trim();
+      const name = ( $("franName").value || "" ).trim();
+      const phone = ( $("franPhone").value || "" ).trim();
+      const city = ( $("franCity").value || "" ).trim();
       if (!name || !phone || !city) {
         $("franStatus").textContent = "Name + phone + territory required.";
         return;
@@ -685,7 +678,7 @@
           name,
           phone,
           territory: city,
-          note: ($("franNote").value || "").trim() || null
+          note: ( $("franNote").value || "" ).trim() || null
         });
         $("franStatus").textContent = "Submitted ✅ We’ll reach out.";
         $("franName").value = $("franPhone").value = $("franCity").value = $("franNote").value = "";
@@ -695,7 +688,7 @@
     };
 
     // =========================
-    // 10) Auth (Admin)
+    // Auth (Admin)
     // =========================
     $("btnAuth").onclick = async () => {
       try {
@@ -706,16 +699,13 @@
       }
     };
 
-    $("btnSignOut").onclick = async () => {
-      await signOut(auth);
-    };
+    $("btnSignOut").onclick = async () => { await signOut(auth); };
 
     let adminSelectedId = null;
 
     function renderRequestsList(listObj) {
       const wrap = $("adminRequests");
       wrap.innerHTML = "";
-
       if (!listObj) {
         wrap.innerHTML = `<div class="text-gray-600">No requests yet.</div>`;
         return;
@@ -745,18 +735,14 @@
 
     function listenRequestsForAdmin() {
       const reqsRef = ref(db, "requests");
-      onValue(reqsRef, (snap) => {
-        renderRequestsList(snap.val());
-      });
+      onValue(reqsRef, (snap) => renderRequestsList(snap.val()));
     }
 
     function listenLiveLocationForSelected(requestId) {
       const liveRef = ref(db, `requests/${requestId}/liveLocation`);
       onValue(liveRef, (snap) => {
         const live = snap.val();
-        if (live?.lat && live?.lng) {
-          setSelectedRequestMarker(live.lat, live.lng);
-        }
+        if (live?.lat && live?.lng) setSelectedRequestMarker(live.lat, live.lng);
       });
     }
 
@@ -764,11 +750,7 @@
       adminSelectedId = requestId;
       $("adminSelected").innerHTML = `<div class="font-bold">Request ID:</div><div class="text-xs text-gray-600">${requestId}</div>`;
       $("adminChatWrap").classList.remove("hidden");
-
-      // Listen to chat in admin panel
       listenChat(requestId, $("adminChatBox"));
-
-      // Listen to live location updates
       listenLiveLocationForSelected(requestId);
     }
 
@@ -786,8 +768,6 @@
       }
 
       $("authStatus").textContent = `Signed in: ${user.email || "unknown"}`;
-
-      // GOD MODE gate
       if ((user.email || "").toLowerCase() === GOD_MODE_EMAIL.toLowerCase()) {
         $("adminPanel").classList.remove("hidden");
         listenRequestsForAdmin();
@@ -795,7 +775,6 @@
         $("adminPanel").classList.add("hidden");
       }
     });
-
   </script>
 </body>
 </html>

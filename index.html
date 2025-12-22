@@ -1,36 +1,781 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>24 Hour Tire Rescue</title>
-  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"></script>
+
+  <!-- Google Maps (replace YOUR_GOOGLE_MAPS_KEY) -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY&libraries=places"></script>
+
+  <style>
+    /* Mobile ergonomics */
+    .tap { min-height: 48px; }
+    .shadow-soft { box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+  </style>
 </head>
+
 <body class="bg-gray-50 text-gray-900 font-sans">
-  <header class="flex items-center justify-between p-4 bg-white shadow-md">
-    <div class="flex items-center space-x-3">
-      <img src="/logo.png" alt="24 Hour Tire Rescue Logo" class="h-12">
-      <h1 class="text-2xl font-bold text-red-600">24 HOUR <span class="text-black">TIRE RESCUE</span></h1>
+  <!-- HEADER -->
+  <header class="sticky top-0 z-40 bg-white shadow-md safe-top">
+    <div class="max-w-6xl mx-auto flex items-center justify-between p-3 md:p-4">
+      <div class="flex items-center space-x-3">
+        <img src="/logo.png" alt="24 Hour Tire Rescue Logo" class="h-10 md:h-12">
+        <div class="leading-tight">
+          <div class="text-lg md:text-2xl font-extrabold text-red-600">24 HOUR <span class="text-black">TIRE RESCUE</span></div>
+          <div class="text-xs md:text-sm text-gray-500">Roadside help • Live tracking • Fast response</div>
+        </div>
+      </div>
+
+      <!-- Desktop buttons -->
+      <div class="hidden md:flex items-center space-x-2">
+        <a href="#fleet" class="tap px-4 py-2 rounded-xl font-semibold border border-gray-200 hover:bg-gray-50">Fleet Services</a>
+        <a href="#franchise" class="tap px-4 py-2 rounded-xl font-semibold border border-gray-200 hover:bg-gray-50">Franchise Owners</a>
+        <button id="btnScrollHelp" class="tap bg-red-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-red-700">
+          Request Help
+        </button>
+      </div>
     </div>
-    <a href="#services" class="bg-red-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-red-700">Request Help</a>
   </header>
 
-  <section class="text-center py-16 bg-gray-100">
-    <h2 class="text-4xl font-extrabold mb-4">In A Jiffy Tire Rescue and More</h2>
-    <p class="text-lg mb-8">Flat tire? Need a quick oil top-up or a roadside clean? We’ll be there — tracked live in real-time.</p>
-    <a href="#map" class="bg-red-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-red-700">Get Help Now</a>
+  <!-- HERO -->
+  <section class="bg-gray-100">
+    <div class="max-w-6xl mx-auto px-4 py-10 md:py-16 text-center">
+      <h2 class="text-3xl md:text-5xl font-extrabold mb-3">Roadside Help. Anytime. Anywhere.</h2>
+      <p class="text-base md:text-lg text-gray-700 mb-6">
+        Flat tire? Tire swap? Jump? Quick roadside clean? We’ll be there — tracked live in real-time.
+      </p>
+
+      <div class="flex flex-col md:flex-row gap-3 justify-center">
+        <button id="btnGetHelpNow" class="tap bg-red-600 text-white px-6 py-4 rounded-2xl font-extrabold text-lg hover:bg-red-700 shadow-soft">
+          Get Help Now
+        </button>
+        <a href="#fleet" class="tap bg-white text-gray-900 px-6 py-4 rounded-2xl font-semibold border border-gray-200 hover:bg-gray-50">
+          Fleet Services (Companies)
+        </a>
+        <a href="#franchise" class="tap bg-white text-gray-900 px-6 py-4 rounded-2xl font-semibold border border-gray-200 hover:bg-gray-50">
+          Become a Franchise Owner
+        </a>
+      </div>
+
+      <div class="mt-6 text-sm text-gray-500">
+        Tip: Tap <span class="font-semibold">Get Help Now</span> → share location → submit request → live chat with driver.
+      </div>
+    </div>
   </section>
 
-  <section id="services" class="grid md:grid-cols-4 gap-6 p-8 bg-white">
-    <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-lg transition">
-      <h3 class="font-bold text-xl mb-2">🛞 Tire Swap</h3>
-      <p>1, 2, or 4 tires — we handle it fast and safe.</p>
+  <!-- SERVICES -->
+  <section id="services" class="max-w-6xl mx-auto px-4 py-8">
+    <h3 class="text-2xl font-extrabold mb-4">Services</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="p-5 bg-white rounded-2xl shadow hover:shadow-lg transition">
+        <div class="text-xl font-bold mb-1">🛞 Tire Swap</div>
+        <div class="text-gray-600">1, 2, or 4 tires — fast & safe.</div>
+      </div>
+      <div class="p-5 bg-white rounded-2xl shadow hover:shadow-lg transition">
+        <div class="text-xl font-bold mb-1">🧴 Courtesy Oil Change</div>
+        <div class="text-gray-600">Quick oil top-off or change while you wait.</div>
+      </div>
+      <div class="p-5 bg-white rounded-2xl shadow hover:shadow-lg transition">
+        <div class="text-xl font-bold mb-1">🧽 Basic Clean</div>
+        <div class="text-gray-600">Roadside cleanup / quick wipe-down support.</div>
+      </div>
+      <div class="p-5 bg-white rounded-2xl shadow hover:shadow-lg transition">
+        <div class="text-xl font-bold mb-1">🔋 Jump / Assist</div>
+        <div class="text-gray-600">Basic roadside assist (as available).</div>
+      </div>
     </div>
-    <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-lg transition">
-      <h3 class="font-bold text-xl mb-2">🧴 Courtesy Oil Change</h3>
-      <p>Quick roadside oil top-off or change while you wait.</p>
+  </section>
+
+  <!-- HELP REQUEST + MAP -->
+  <section id="help" class="max-w-6xl mx-auto px-4 pb-24 md:pb-10">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Request Card -->
+      <div class="bg-white rounded-2xl shadow p-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-2xl font-extrabold">Request Help</h3>
+          <button id="btnAuth" class="tap px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 font-semibold">
+            Sign In (Admin/Driver)
+          </button>
+        </div>
+
+        <div id="authStatus" class="mt-2 text-sm text-gray-500"></div>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <label class="block text-sm font-semibold mb-1">Your name</label>
+            <input id="custName" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="First & last name" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">Phone</label>
+            <input id="custPhone" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="(210) 555-1234" />
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">What do you need?</label>
+            <select id="serviceType" class="tap w-full border border-gray-200 rounded-xl px-4 py-3">
+              <option value="Tire Swap">Tire Swap</option>
+              <option value="Mobile Tire Repair">Mobile Tire Repair</option>
+              <option value="Jump / Assist">Jump / Assist</option>
+              <option value="Courtesy Oil">Courtesy Oil</option>
+              <option value="Basic Clean">Basic Clean</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold mb-1">Details (optional)</label>
+            <textarea id="details" class="w-full border border-gray-200 rounded-xl px-4 py-3" rows="3" placeholder="Example: rear driver tire shredded, on shoulder, hazards on."></textarea>
+          </div>
+
+          <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4">
+            <div class="flex items-start gap-3">
+              <div class="text-2xl">📍</div>
+              <div class="flex-1">
+                <div class="font-bold">Your location</div>
+                <div id="locText" class="text-sm text-gray-600">Tap “Share My Location” to enable live tracking.</div>
+              </div>
+            </div>
+            <div class="mt-3 flex flex-col md:flex-row gap-2">
+              <button id="btnShareLoc" class="tap w-full md:w-auto px-5 py-3 rounded-2xl bg-white border border-gray-200 hover:bg-gray-50 font-bold">
+                Share My Location
+              </button>
+              <button id="btnSubmitRequest" class="tap w-full md:w-auto px-5 py-3 rounded-2xl bg-red-600 text-white hover:bg-red-700 font-extrabold">
+                Submit Request (Red Button)
+              </button>
+            </div>
+            <div id="reqStatus" class="mt-2 text-sm text-gray-600"></div>
+          </div>
+
+          <!-- Customer Chat -->
+          <div id="customerChatWrap" class="hidden border border-gray-200 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="font-extrabold">Live Chat</div>
+              <div id="chatMeta" class="text-xs text-gray-500"></div>
+            </div>
+            <div id="chatBox" class="h-48 overflow-y-auto bg-gray-50 rounded-xl p-3 text-sm"></div>
+            <div class="mt-2 flex gap-2">
+              <input id="chatInput" class="tap flex-1 border border-gray-200 rounded-xl px-4 py-3" placeholder="Type message..." />
+              <button id="btnSendChat" class="tap px-4 py-3 rounded-xl bg-black text-white font-bold hover:bg-gray-800">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map Card -->
+      <div class="bg-white rounded-2xl shadow p-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-2xl font-extrabold">Live Map</h3>
+          <div class="text-xs text-gray-500">Customer → Driver tracking (Firebase)</div>
+        </div>
+        <div id="map" class="mt-4 w-full h-96 rounded-2xl bg-gray-100"></div>
+
+        <!-- Admin panel (God Mode) -->
+        <div id="adminPanel" class="hidden mt-6 border border-red-200 bg-red-50 rounded-2xl p-4">
+          <div class="flex items-center justify-between">
+            <div class="font-extrabold text-red-700">GOD MODE (Admin)</div>
+            <button id="btnSignOut" class="tap px-3 py-2 rounded-xl bg-white border border-red-200 hover:bg-red-100 font-semibold">
+              Sign Out
+            </button>
+          </div>
+
+          <div class="mt-3 text-sm text-red-700">
+            Logged in as <span class="font-bold">dealbankers@gmail.com</span>. You can see live requests, locations, and chat.
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div class="bg-white rounded-2xl p-3 border border-red-100">
+              <div class="font-bold mb-2">Incoming Requests</div>
+              <div id="adminRequests" class="text-sm space-y-2"></div>
+            </div>
+            <div class="bg-white rounded-2xl p-3 border border-red-100">
+              <div class="font-bold mb-2">Selected Request</div>
+              <div id="adminSelected" class="text-sm text-gray-700">Select a request to view details + live chat.</div>
+              <div id="adminChatWrap" class="hidden mt-3">
+                <div id="adminChatBox" class="h-40 overflow-y-auto bg-gray-50 rounded-xl p-3 text-sm"></div>
+                <div class="mt-2 flex gap-2">
+                  <input id="adminChatInput" class="tap flex-1 border border-gray-200 rounded-xl px-4 py-3" placeholder="Message customer / driver..." />
+                  <button id="btnAdminSend" class="tap px-4 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 text-xs text-gray-600">
+            Next step later: add a dedicated <code>/driver.html</code> that updates driver GPS + accepts jobs.
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-lg transition">
-      <h3 class="font-bold text-xl mb-2">🧽 Basic Clean</h3>
+  </section>
+
+  <!-- FLEET SERVICES -->
+  <section id="fleet" class="bg-white border-t border-gray-100">
+    <div class="max-w-6xl mx-auto px-4 py-10">
+      <div class="flex items-start justify-between flex-col md:flex-row gap-4">
+        <div>
+          <h3 class="text-3xl font-extrabold">Fleet Services</h3>
+          <p class="text-gray-600 mt-2">
+            For contractors, delivery companies, tow fleets, landscaping, HVAC, and equipment operators.
+            One tap dispatch, live tracking, real-time updates.
+          </p>
+          <ul class="mt-4 space-y-2 text-gray-700">
+            <li>✅ Priority dispatch + SLA options</li>
+            <li>✅ Multiple vehicles + driver contact list</li>
+            <li>✅ Job history + invoices (optional add-on)</li>
+            <li>✅ Live GPS + chat for every call</li>
+          </ul>
+        </div>
+
+        <div class="bg-gray-50 rounded-2xl p-5 shadow w-full md:w-96">
+          <div class="font-extrabold text-lg">Start Fleet Account</div>
+          <div class="text-sm text-gray-600 mt-1">We’ll contact you fast to set up fleet pricing + dispatch.</div>
+
+          <div class="mt-3 space-y-2">
+            <input id="fleetCompany" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Company name" />
+            <input id="fleetContact" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Contact name" />
+            <input id="fleetPhone" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Phone" />
+            <input id="fleetEmail" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Email (optional)" />
+            <select id="fleetSize" class="tap w-full border border-gray-200 rounded-xl px-4 py-3">
+              <option value="1-5">Fleet size: 1–5</option>
+              <option value="6-20">Fleet size: 6–20</option>
+              <option value="21-100">Fleet size: 21–100</option>
+              <option value="100+">Fleet size: 100+</option>
+            </select>
+            <button id="btnFleetStart" class="tap w-full bg-red-600 text-white py-3 rounded-2xl font-extrabold hover:bg-red-700">
+              Start Fleet Setup
+            </button>
+            <div id="fleetStatus" class="text-sm text-gray-600"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FRANCHISE -->
+  <section id="franchise" class="bg-gray-100 border-t border-gray-200">
+    <div class="max-w-6xl mx-auto px-4 py-10">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <div>
+          <h3 class="text-3xl font-extrabold">Become a Franchise Owner</h3>
+          <p class="text-gray-700 mt-2">
+            Plug into our brand, client base, and dispatch system. You get the truck + equipment setup, training,
+            and management support to run operations like Uber/Lyft — but for emergency tire & roadside service.
+          </p>
+
+          <ul class="mt-4 space-y-2 text-gray-800">
+            <li>🚚 Truck + equipment / setup provided</li>
+            <li>📲 Dispatch + live GPS tracking + customer chat</li>
+            <li>🎓 Training + operations + management playbook</li>
+            <li>📣 Marketing support + local territory growth</li>
+          </ul>
+
+          <div class="mt-5 flex flex-col sm:flex-row gap-3">
+            <a href="#franchiseForm" class="tap bg-black text-white px-6 py-3 rounded-2xl font-extrabold hover:bg-gray-800">
+              Apply for Franchise
+            </a>
+            <a href="#fleet" class="tap bg-white border border-gray-200 px-6 py-3 rounded-2xl font-semibold hover:bg-gray-50">
+              I’m a Fleet Client
+            </a>
+          </div>
+        </div>
+
+        <div id="franchiseForm" class="bg-white rounded-2xl shadow p-5">
+          <div class="font-extrabold text-lg">Franchise Inquiry</div>
+          <div class="text-sm text-gray-600 mt-1">Tell us where you want to operate — we’ll follow up.</div>
+
+          <div class="mt-3 space-y-2">
+            <input id="franName" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Your name" />
+            <input id="franPhone" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="Phone" />
+            <input id="franCity" class="tap w-full border border-gray-200 rounded-xl px-4 py-3" placeholder="City / territory" />
+            <textarea id="franNote" class="w-full border border-gray-200 rounded-xl px-4 py-3" rows="3" placeholder="Any experience? Any questions?"></textarea>
+            <button id="btnFranchiseApply" class="tap w-full bg-red-600 text-white py-3 rounded-2xl font-extrabold hover:bg-red-700">
+              Submit Franchise Inquiry
+            </button>
+            <div id="franStatus" class="text-sm text-gray-600"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="bg-white border-t border-gray-200">
+    <div class="max-w-6xl mx-auto px-4 py-8 text-sm text-gray-600">
+      <div class="flex flex-col md:flex-row justify-between gap-2">
+        <div>© <span id="year"></span> 24 Hour Tire Rescue</div>
+        <div class="flex gap-4">
+          <a href="#help" class="hover:text-black">Request Help</a>
+          <a href="#fleet" class="hover:text-black">Fleet</a>
+          <a href="#franchise" class="hover:text-black">Franchise</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MOBILE STICKY BOTTOM BAR -->
+  <div class="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-soft safe-bottom md:hidden">
+    <div class="max-w-6xl mx-auto px-3 py-2 flex items-center gap-2">
+      <button id="mHelp" class="tap flex-1 bg-red-600 text-white rounded-2xl font-extrabold text-base py-3 hover:bg-red-700">
+        Request Help Now
+      </button>
+      <a href="#fleet" class="tap px-4 py-3 rounded-2xl border border-gray-200 font-semibold">Fleet</a>
+      <a href="#franchise" class="tap px-4 py-3 rounded-2xl border border-gray-200 font-semibold">Franchise</a>
+    </div>
+  </div>
+
+  <!-- Firebase + App Logic -->
+  <script type="module">
+    // =========================
+    // 1) Firebase imports (v9)
+    // =========================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import {
+      getDatabase,
+      ref,
+      push,
+      set,
+      update,
+      onValue,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+    // =========================
+    // 2) CONFIG: paste yours
+    // =========================
+    const firebaseConfig = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const GOD_MODE_EMAIL = "dealbankers@gmail.com";
+
+    // =========================
+    // 3) Init
+    // =========================
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    const provider = new GoogleAuthProvider();
+
+    // =========================
+    // 4) UI helpers
+    // =========================
+    const $ = (id) => document.getElementById(id);
+
+    $("year").textContent = new Date().getFullYear();
+
+    const scrollToHelp = () => document.querySelector("#help").scrollIntoView({ behavior: "smooth", block: "start" });
+
+    $("btnGetHelpNow").onclick = scrollToHelp;
+    $("btnScrollHelp").onclick = scrollToHelp;
+    $("mHelp").onclick = scrollToHelp;
+
+    // =========================
+    // 5) Google Map setup
+    // =========================
+    let map, customerMarker, selectedReqMarker;
+    let lastLatLng = null;
+
+    function initMap() {
+      const center = { lat: 29.4241, lng: -98.4936 }; // default: San Antonio
+      map = new google.maps.Map($("map"), {
+        center,
+        zoom: 12,
+        disableDefaultUI: true,
+        zoomControl: true
+      });
+    }
+    initMap();
+
+    function setCustomerMarker(lat, lng) {
+      lastLatLng = { lat, lng };
+      if (!customerMarker) {
+        customerMarker = new google.maps.Marker({
+          position: lastLatLng,
+          map,
+          title: "Your Location"
+        });
+      } else {
+        customerMarker.setPosition(lastLatLng);
+      }
+      map.setCenter(lastLatLng);
+      map.setZoom(15);
+    }
+
+    function setSelectedRequestMarker(lat, lng) {
+      const pos = { lat, lng };
+      if (!selectedReqMarker) {
+        selectedReqMarker = new google.maps.Marker({
+          position: pos,
+          map,
+          title: "Selected Request (Admin)"
+        });
+      } else {
+        selectedReqMarker.setPosition(pos);
+      }
+      map.setCenter(pos);
+      map.setZoom(15);
+    }
+
+    // Reverse geocode (nice UX)
+    async function reverseGeocode(lat, lng) {
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const res = await geocoder.geocode({ location: { lat, lng }});
+        const addr = res?.results?.[0]?.formatted_address;
+        return addr || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      } catch (e) {
+        return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+    }
+
+    // =========================
+    // 6) Live Location sharing
+    // =========================
+    let watchId = null;
+    let currentAddress = null;
+
+    $("btnShareLoc").onclick = async () => {
+      $("reqStatus").textContent = "Requesting GPS permission…";
+      if (!navigator.geolocation) {
+        $("reqStatus").textContent = "Geolocation not supported on this device.";
+        return;
+      }
+
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      watchId = navigator.geolocation.watchPosition(async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setCustomerMarker(lat, lng);
+
+        currentAddress = await reverseGeocode(lat, lng);
+        $("locText").textContent = currentAddress;
+
+        $("reqStatus").textContent = "Live location active ✅";
+      }, (err) => {
+        $("reqStatus").textContent = "Location permission blocked. Please enable GPS.";
+      }, {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 15000
+      });
+    };
+
+    // =========================
+    // 7) Create a Help Request
+    // =========================
+    let activeRequestId = null;
+
+    function val(id) { return ($(id).value || "").trim(); }
+
+    function requireBasics() {
+      const name = val("custName");
+      const phone = val("custPhone");
+      const service = val("serviceType");
+      if (!name || !phone || !service) return false;
+      if (!lastLatLng) return false;
+      return true;
+    }
+
+    $("btnSubmitRequest").onclick = async () => {
+      $("reqStatus").textContent = "";
+
+      if (!requireBasics()) {
+        $("reqStatus").textContent = "Fill name + phone + choose service AND share location first.";
+        return;
+      }
+
+      const payload = {
+        createdAt: Date.now(),
+        status: "NEW",
+        customer: {
+          name: val("custName"),
+          phone: val("custPhone")
+        },
+        service: val("serviceType"),
+        details: val("details"),
+        location: {
+          lat: lastLatLng.lat,
+          lng: lastLatLng.lng,
+          address: currentAddress || null
+        }
+      };
+
+      try {
+        const reqRef = push(ref(db, "requests"));
+        await set(reqRef, payload);
+        activeRequestId = reqRef.key;
+
+        // Create chat root
+        await set(ref(db, `chats/${activeRequestId}/meta`), {
+          createdAt: Date.now(),
+          requestId: activeRequestId
+        });
+
+        $("reqStatus").textContent = `Request submitted ✅ (ID: ${activeRequestId})`;
+        $("customerChatWrap").classList.remove("hidden");
+        $("chatMeta").textContent = `Request: ${activeRequestId}`;
+
+        // Start pushing live GPS updates into /requests/{id}/liveLocation if watch is running
+        startLiveLocationSync(activeRequestId);
+
+        // Start listening to chat
+        listenChat(activeRequestId, $("chatBox"));
+
+      } catch (e) {
+        console.error(e);
+        $("reqStatus").textContent = "Error submitting request. Try again.";
+      }
+    };
+
+    async function startLiveLocationSync(requestId) {
+      if (!watchId) return; // only if user tapped Share Location
+      // Every time marker updates (watchPosition), we also update liveLocation
+      // We'll do a lightweight interval that writes the latest lat/lng if available.
+      const liveRef = ref(db, `requests/${requestId}/liveLocation`);
+      const tick = async () => {
+        if (!activeRequestId || activeRequestId !== requestId) return;
+        if (!lastLatLng) return;
+        try {
+          await update(liveRef, {
+            lat: lastLatLng.lat,
+            lng: lastLatLng.lng,
+            address: currentAddress || null,
+            updatedAt: Date.now()
+          });
+        } catch {}
+      };
+      // do it immediately + every 6s
+      await tick();
+      const intervalId = setInterval(async () => {
+        if (!activeRequestId || activeRequestId !== requestId) { clearInterval(intervalId); return; }
+        await tick();
+      }, 6000);
+    }
+
+    // =========================
+    // 8) Chat (customer + admin)
+    // =========================
+    function renderChat(container, msgsObj) {
+      container.innerHTML = "";
+      if (!msgsObj) return;
+      const msgs = Object.entries(msgsObj)
+        .filter(([k]) => k !== "meta")
+        .map(([id, m]) => ({ id, ...m }))
+        .sort((a,b) => (a.ts||0) - (b.ts||0));
+
+      for (const m of msgs) {
+        const wrap = document.createElement("div");
+        wrap.className = "mb-2";
+        const who = document.createElement("div");
+        who.className = "text-xs text-gray-500";
+        who.textContent = `${m.from || "unknown"} • ${new Date(m.ts || Date.now()).toLocaleTimeString()}`;
+        const body = document.createElement("div");
+        body.className = "bg-white border border-gray-200 rounded-xl p-2";
+        body.textContent = m.text || "";
+        wrap.appendChild(who);
+        wrap.appendChild(body);
+        container.appendChild(wrap);
+      }
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function listenChat(requestId, container) {
+      const chatRef = ref(db, `chats/${requestId}`);
+      onValue(chatRef, (snap) => {
+        renderChat(container, snap.val());
+      });
+    }
+
+    async function sendChatMessage(requestId, from, text) {
+      const t = (text || "").trim();
+      if (!t) return;
+      const msgRef = push(ref(db, `chats/${requestId}`));
+      await set(msgRef, { from, text: t, ts: Date.now() });
+    }
+
+    $("btnSendChat").onclick = async () => {
+      if (!activeRequestId) return;
+      await sendChatMessage(activeRequestId, "customer", $("chatInput").value);
+      $("chatInput").value = "";
+    };
+
+    // =========================
+    // 9) Fleet + Franchise forms (stored in Firebase)
+    // =========================
+    $("btnFleetStart").onclick = async () => {
+      $("fleetStatus").textContent = "";
+      const company = ($("fleetCompany").value || "").trim();
+      const contact = ($("fleetContact").value || "").trim();
+      const phone = ($("fleetPhone").value || "").trim();
+      if (!company || !contact || !phone) {
+        $("fleetStatus").textContent = "Company + contact + phone required.";
+        return;
+      }
+      try {
+        const leadRef = push(ref(db, "fleetLeads"));
+        await set(leadRef, {
+          createdAt: Date.now(),
+          company,
+          contact,
+          phone,
+          email: ($("fleetEmail").value || "").trim() || null,
+          fleetSize: $("fleetSize").value || null
+        });
+        $("fleetStatus").textContent = "Submitted ✅ We’ll contact you fast.";
+        $("fleetCompany").value = $("fleetContact").value = $("fleetPhone").value = $("fleetEmail").value = "";
+      } catch {
+        $("fleetStatus").textContent = "Error. Try again.";
+      }
+    };
+
+    $("btnFranchiseApply").onclick = async () => {
+      $("franStatus").textContent = "";
+      const name = ($("franName").value || "").trim();
+      const phone = ($("franPhone").value || "").trim();
+      const city = ($("franCity").value || "").trim();
+      if (!name || !phone || !city) {
+        $("franStatus").textContent = "Name + phone + territory required.";
+        return;
+      }
+      try {
+        const leadRef = push(ref(db, "franchiseLeads"));
+        await set(leadRef, {
+          createdAt: Date.now(),
+          name,
+          phone,
+          territory: city,
+          note: ($("franNote").value || "").trim() || null
+        });
+        $("franStatus").textContent = "Submitted ✅ We’ll reach out.";
+        $("franName").value = $("franPhone").value = $("franCity").value = $("franNote").value = "";
+      } catch {
+        $("franStatus").textContent = "Error. Try again.";
+      }
+    };
+
+    // =========================
+    // 10) Auth (Admin)
+    // =========================
+    $("btnAuth").onclick = async () => {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        console.error(e);
+        alert("Sign-in failed.");
+      }
+    };
+
+    $("btnSignOut").onclick = async () => {
+      await signOut(auth);
+    };
+
+    let adminSelectedId = null;
+
+    function renderRequestsList(listObj) {
+      const wrap = $("adminRequests");
+      wrap.innerHTML = "";
+
+      if (!listObj) {
+        wrap.innerHTML = `<div class="text-gray-600">No requests yet.</div>`;
+        return;
+      }
+
+      const items = Object.entries(listObj)
+        .map(([id, r]) => ({ id, ...r }))
+        .sort((a,b) => (b.createdAt||0) - (a.createdAt||0))
+        .slice(0, 30);
+
+      for (const r of items) {
+        const btn = document.createElement("button");
+        btn.className = "w-full text-left bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl p-3";
+        btn.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="font-bold">${r.service || "Request"}</div>
+            <div class="text-xs px-2 py-1 rounded-lg ${r.status==="NEW" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}">${r.status || "—"}</div>
+          </div>
+          <div class="text-xs text-gray-600 mt-1">${r.customer?.name || ""} • ${r.customer?.phone || ""}</div>
+          <div class="text-xs text-gray-500 mt-1">${r.location?.address || ""}</div>
+          <div class="text-[11px] text-gray-400 mt-1">ID: ${r.id}</div>
+        `;
+        btn.onclick = () => selectRequestAsAdmin(r.id);
+        wrap.appendChild(btn);
+      }
+    }
+
+    function listenRequestsForAdmin() {
+      const reqsRef = ref(db, "requests");
+      onValue(reqsRef, (snap) => {
+        renderRequestsList(snap.val());
+      });
+    }
+
+    function listenLiveLocationForSelected(requestId) {
+      const liveRef = ref(db, `requests/${requestId}/liveLocation`);
+      onValue(liveRef, (snap) => {
+        const live = snap.val();
+        if (live?.lat && live?.lng) {
+          setSelectedRequestMarker(live.lat, live.lng);
+        }
+      });
+    }
+
+    function selectRequestAsAdmin(requestId) {
+      adminSelectedId = requestId;
+      $("adminSelected").innerHTML = `<div class="font-bold">Request ID:</div><div class="text-xs text-gray-600">${requestId}</div>`;
+      $("adminChatWrap").classList.remove("hidden");
+
+      // Listen to chat in admin panel
+      listenChat(requestId, $("adminChatBox"));
+
+      // Listen to live location updates
+      listenLiveLocationForSelected(requestId);
+    }
+
+    $("btnAdminSend").onclick = async () => {
+      if (!adminSelectedId) return;
+      await sendChatMessage(adminSelectedId, "admin", $("adminChatInput").value);
+      $("adminChatInput").value = "";
+    };
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        $("authStatus").textContent = "Not signed in.";
+        $("adminPanel").classList.add("hidden");
+        return;
+      }
+
+      $("authStatus").textContent = `Signed in: ${user.email || "unknown"}`;
+
+      // GOD MODE gate
+      if ((user.email || "").toLowerCase() === GOD_MODE_EMAIL.toLowerCase()) {
+        $("adminPanel").classList.remove("hidden");
+        listenRequestsForAdmin();
+      } else {
+        $("adminPanel").classList.add("hidden");
+      }
+    });
+
+  </script>
+</body>
+</html>
